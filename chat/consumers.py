@@ -3,13 +3,18 @@ import json
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
+from django.contrib.auth.models import AnonymousUser
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = 'chat_%s' % self.room_name
-
+        self.user = self.scope["user"]
+        print(self.user.username)
+        if self.user == AnonymousUser():
+            await self.disconnect(404)
+            return None
         # Join room group
         await self.channel_layer.group_add(
             self.room_group_name,
@@ -26,7 +31,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         text_data_json = json.loads(text_data)
-        message = text_data_json['message']
+        message = text_data_json['message'] + " " + self.user.username
 
         # Send message to room group
         await self.channel_layer.group_send(
