@@ -10,14 +10,11 @@
     <li>was</li>
 </ul>
 <script>
-    const roomName = JSON.parse(document.getElementById('room-name').textContent);
 
     const chatSocket = new WebSocket(
         'ws://'
         + window.location.host
-        + '/ws/chat/'
-        + roomName
-        + '/'
+        + '/ws/friend-list'
     );
 
     chatSocket.onmessage = function (e) {
