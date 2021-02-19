@@ -4,3 +4,4 @@ channels~=3.0.3
 channels_redis
 selenium
 django-allauth
+django-environ
