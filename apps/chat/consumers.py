@@ -11,7 +11,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = 'chat_%s' % self.room_name
         self.user = self.scope["user"]
-        print(self.user.username)
+        print(self.user.username, self.channel_name)
         if self.user == AnonymousUser():
             await self.disconnect(404)
             return None
