@@ -22,9 +22,7 @@ class FriendListView(LoginRequiredMixin, View):
         users = User.objects.exclude(id__in=friend_list)
         for user in users:
             friend = Friend(user_1=request.user, user_2=user)
-            friend.save()
-        friend_list.remove(request.user.id)
-        print(friend_list, users)
+            # friend.save()
 
         context = {}
         return render(request, 'friend/friend-list.html', context)

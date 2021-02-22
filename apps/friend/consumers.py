@@ -1,40 +1,53 @@
 # chat/consumers.py
 import json
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
+from channels.layers import get_channel_layer
 from django.contrib.auth.models import AnonymousUser, User
+from django.db.models import Q
+
+from apps.friend.models import Friend
 
 
-class FriendConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
+class FriendConsumer(WebsocketConsumer):
+    def connect(self):
         self.user = self.scope["user"]
         print(self.user.username)
         if self.user == AnonymousUser():
             self.disconnect(404)
             return None
-        await self.accept()
-        users = User.objects.exclude(username=self.user.username)
-        for user in users:
+        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
+        for friend in friends:
             # Join room group
-            await self.channel_layer.group_add(
-                user.username,
+            async_to_sync(self.channel_layer.group_add)(
+                friend.connection_key,
+                self.channel_name
+            )
+            async_to_sync(self.channel_layer.group_send)(
+                friend.connection_key,
+                {
+                    'type': 'channel_message',
+                    'message': friend.user_1.username + "+" + friend.user_2.username
+                }
+            )
+        self.accept()
+
+    def disconnect(self, close_code):
+        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user)).distinct('id')
+        for friend in friends:
+            # leave room group
+            self.channel_layer.group_discard(
+                friend.connection_key,
                 self.channel_name
             )
 
-    async def disconnect(self, close_code):
-        # Leave room group
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
-
-    # async def receive(self, text_data):
+    # def receive(self, text_data):
     #     text_data_json = json.loads(text_data)
     #     message = text_data_json['message'] + " " + self.user.username
     #
     #     # Send message to room group
-    #     await self.channel_layer.group_send(
+    #     self.channel_layer.group_send(
     #         self.room_group_name,
     #         {
     #             'type': 'chat_message',
@@ -43,10 +56,18 @@ class FriendConsumer(AsyncWebsocketConsumer):
     #     )
     #
     # # Receive message from room group
-    # async def chat_message(self, event):
+    # def chat_message(self, event):
     #     message = event['message']
     #
     #     # Send message to WebSocket
-    #     await self.send(text_data=json.dumps({
+    #     self.send(text_data=json.dumps({
     #         'message': message
     #     }))
+    # Receive message from the group
+    def channel_message(self, event):
+        message = event['message']
+
+        # Send message to WebSocket
+        self.send(text_data=json.dumps({
+            'message': message
+        }))
