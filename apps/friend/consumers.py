@@ -5,7 +5,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 from django.contrib.auth.models import AnonymousUser, User
-from django.db.models import Q
+from django.db.models import Q, F
 
 from apps.friend.models import Friend
 
@@ -18,6 +18,8 @@ class FriendConsumer(WebsocketConsumer):
             self.disconnect(404)
             return None
         friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
+        Friend.objects.filter(user_1=self.user).update(user_1_connection_count=F('user_1_connection_count') + 1)
+        Friend.objects.filter(user_2=self.user).update(user_2_connection_count=F('user_2_connection_count') + 1)
         for friend in friends:
             # Join room group
             async_to_sync(self.channel_layer.group_add)(
@@ -28,18 +30,31 @@ class FriendConsumer(WebsocketConsumer):
                 friend.connection_key,
                 {
                     'type': 'channel_message',
-                    'message': friend.user_1.username + "+" + friend.user_2.username
+                    'message': friend.user_1.username + "+" + friend.user_2.username,
+                    'status': 'connected'
                 }
             )
         self.accept()
 
     def disconnect(self, close_code):
-        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user)).distinct('id')
+        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
+        # .distinct('id')
+        Friend.objects.filter(user_1=self.user).update(user_1_connection_count=F('user_1_connection_count') - 1)
+        Friend.objects.filter(user_2=self.user).update(user_2_connection_count=F('user_2_connection_count') - 1)
+
         for friend in friends:
             # leave room group
             self.channel_layer.group_discard(
                 friend.connection_key,
                 self.channel_name
+            )
+            async_to_sync(self.channel_layer.group_send)(
+                friend.connection_key,
+                {
+                    'type': 'channel_message',
+                    'message': friend.user_1.username + "+" + friend.user_2.username,
+                    'status': 'disconnected'
+                }
             )
 
     # def receive(self, text_data):
@@ -66,8 +81,10 @@ class FriendConsumer(WebsocketConsumer):
     # Receive message from the group
     def channel_message(self, event):
         message = event['message']
+        status = event['status']
 
         # Send message to WebSocket
         self.send(text_data=json.dumps({
-            'message': message
+            'message': message,
+            'status': status
         }))
