@@ -17,9 +17,9 @@ class FriendConsumer(WebsocketConsumer):
         if self.user == AnonymousUser():
             self.disconnect(404)
             return None
-        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
         Friend.objects.filter(user_1=self.user).update(user_1_connection_count=F('user_1_connection_count') + 1)
         Friend.objects.filter(user_2=self.user).update(user_2_connection_count=F('user_2_connection_count') + 1)
+        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
         for friend in friends:
             # Join room group
             async_to_sync(self.channel_layer.group_add)(
@@ -37,11 +37,12 @@ class FriendConsumer(WebsocketConsumer):
         self.accept()
 
     def disconnect(self, close_code):
-        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
-        # .distinct('id')
+
         Friend.objects.filter(user_1=self.user).update(user_1_connection_count=F('user_1_connection_count') - 1)
         Friend.objects.filter(user_2=self.user).update(user_2_connection_count=F('user_2_connection_count') - 1)
 
+        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
+        # .distinct('id')
         for friend in friends:
             # leave room group
             self.channel_layer.group_discard(
