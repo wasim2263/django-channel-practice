@@ -38,10 +38,13 @@ class FriendConsumer(WebsocketConsumer):
 
     def disconnect(self, close_code):
 
-        Friend.objects.filter(user_1=self.user).update(user_1_connection_count=F('user_1_connection_count') - 1)
-        Friend.objects.filter(user_2=self.user).update(user_2_connection_count=F('user_2_connection_count') - 1)
+        Friend.objects.filter(user_1=self.user, user_1_connection_count__gt=0).update(
+            user_1_connection_count=F('user_1_connection_count') - 1)
+        Friend.objects.filter(user_2=self.user, user_2_connection_count__gt=0).update(
+            user_2_connection_count=F('user_2_connection_count') - 1)
 
-        friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
+        friends = Friend.objects.filter(
+            Q(user_1=self.user, user_1_connection_count=0) | Q(user_2=self.user, user_2_connection_count=0))
         # .distinct('id')
         for friend in friends:
             # leave room group
@@ -58,28 +61,6 @@ class FriendConsumer(WebsocketConsumer):
                 }
             )
 
-    # def receive(self, text_data):
-    #     text_data_json = json.loads(text_data)
-    #     message = text_data_json['message'] + " " + self.user.username
-    #
-    #     # Send message to room group
-    #     self.channel_layer.group_send(
-    #         self.room_group_name,
-    #         {
-    #             'type': 'chat_message',
-    #             'message': message
-    #         }
-    #     )
-    #
-    # # Receive message from room group
-    # def chat_message(self, event):
-    #     message = event['message']
-    #
-    #     # Send message to WebSocket
-    #     self.send(text_data=json.dumps({
-    #         'message': message
-    #     }))
-    # Receive message from the group
     def channel_message(self, event):
         message = event['message']
         status = event['status']
