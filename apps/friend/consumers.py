@@ -17,6 +17,7 @@ class FriendConsumer(WebsocketConsumer):
         if self.user == AnonymousUser():
             self.disconnect(404)
             return None
+
         Friend.objects.filter(user_1=self.user).update(user_1_connection_count=F('user_1_connection_count') + 1)
         Friend.objects.filter(user_2=self.user).update(user_2_connection_count=F('user_2_connection_count') + 1)
         friends = Friend.objects.filter(Q(user_1=self.user) | Q(user_2=self.user))
@@ -31,7 +32,8 @@ class FriendConsumer(WebsocketConsumer):
                 {
                     'type': 'channel_message',
                     'message': friend.user_1.username + "+" + friend.user_2.username,
-                    'status': 'connected'
+                    'status': 'connected',
+                    'connection_key': friend.connection_key
                 }
             )
         self.accept()
@@ -57,16 +59,20 @@ class FriendConsumer(WebsocketConsumer):
                 {
                     'type': 'channel_message',
                     'message': friend.user_1.username + "+" + friend.user_2.username,
-                    'status': 'disconnected'
+                    'status': 'disconnected',
+                    'connection_key': friend.connection_key
                 }
             )
 
     def channel_message(self, event):
         message = event['message']
         status = event['status']
+        connection_key = event['connection_key']
 
         # Send message to WebSocket
         self.send(text_data=json.dumps({
             'message': message,
-            'status': status
+            'status': status,
+            'connection_key': connection_key,
+            'user_name': self.user.username
         }))

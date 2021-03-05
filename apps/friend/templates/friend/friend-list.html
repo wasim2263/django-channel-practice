@@ -6,21 +6,37 @@
     <title>Chat Room</title>
 </head>
 <body>
-<ul>
-    <li>was</li>
+<ul id='friend-list'>
+
 </ul>
 <script>
-
+    const user_name = "{{ request.user.username }}";
+    let friend_list = [];
     const chatSocket = new WebSocket(
         'ws://'
         + window.location.host
         + '/ws/friend-list'
     );
-
+    console.log(user_name)
     chatSocket.onmessage = function (e) {
         const data = JSON.parse(e.data);
         {#document.querySelector('#chat-log').value += (data.message + '\n');#}
-        console.log(data)
+        if (data.status == 'connected') {
+            friend_list.push(data)
+        /*
+            if (frind_list.includes(data.connection_key)) {
+                let object_index = frind_list.indexOf(data.connection_key)
+                if (frind_list[object_index].user_name = data.user_name && data.user_name_ != user_name) {
+                    frind_list[object_index].status = data.status
+                }
+            } else if (data.user_name_ != user_name) {
+                let single_friend =
+                frind_list.push(data.connection_key11)
+                frind_list[data.connection_key11]
+            }*/
+        }
+
+        console.log(friend_list)
     };
 
     chatSocket.onclose = function (e) {
