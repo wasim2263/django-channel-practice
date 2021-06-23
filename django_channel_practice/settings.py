@@ -170,3 +170,12 @@ AUTHENTICATION_BACKENDS = [
 # allauth settings
 SITE_ID = 1
 LOGIN_REDIRECT_URL = '/chat'
+# EMAIL
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#email-backend
+EMAIL_BACKEND = env(
+    "DJANGO_EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
+
+EMAIL_HOST = 'localhost'
+EMAIL_PORT = 1025
