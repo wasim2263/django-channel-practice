@@ -7,5 +7,4 @@ django-allauth
 django-environ
 django-model-utils
 shortuuid
-
 django-extensions
